@@ -22,8 +22,17 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 2rem;
       margin-top: 20px;
+    }
+
+    /* Live section spacing remains roomy */
+    #streams-live {
+      gap: 2rem;
+    }
+
+    /* Offline section tighter grid */
+    #streams-offline {
+      gap: 1rem;
     }
 
     .widget {
@@ -87,6 +96,26 @@
       text-decoration: none;
       color: inherit;
       display: block;
+    }
+
+    /* 🔹 Offline widget compact style */
+    a.offline-link .widget {
+      width: 250px;
+      padding: 14px;
+    }
+
+    a.offline-link .profile {
+      width: 60px;
+      height: 60px;
+    }
+
+    a.offline-link .username {
+      font-size: 1.1rem;
+    }
+
+    a.offline-link .title,
+    a.offline-link .viewers {
+      font-size: 0.85rem;
     }
   </style>
 </head>
