@@ -8,7 +8,8 @@
 
 <img width="533" height="138" alt="wots" src="https://github.com/user-attachments/assets/1ee89fd5-5a43-4470-9a72-8a3668d94e09" />
 
-  
+  <img width="1234" height="716" alt="123" src="https://github.com/user-attachments/assets/a5252768-a3e8-4268-bb47-a5321a023145" />
+
   <h1>Multiwatch.wots.live</h1>
   <p>
     Multiwatch.wots.live is a Node.js application that allows you to monitor and watch multiple live streams from 
