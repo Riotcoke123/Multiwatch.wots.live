@@ -1,1 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Watch Multiple Streams of Wots.Live</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Open+Sans');
 
+    body {
+      background: #000;
+      font-family: 'Open Sans', sans-serif;
+      color: #fff;
+      text-align: center;
+    }
+
+    #live-section, #offline-section {
+      margin: 40px 0;
+    }
+
+    #streams-live, #streams-offline {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 20px;
+    }
+
+    .widget {
+      width: 560px;
+      background: #111;
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid #222;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      text-align: center;
+      color: #fff;
+    }
+
+    .profile {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #444;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .username {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .title {
+      font-size: 1rem;
+      margin-top: 4px;
+      color: #fff;
+    }
+
+    .viewers {
+      font-size: 0.95rem;
+      margin-top: 4px;
+      color: #fff;
+    }
+
+    video {
+      width: 520px;
+      height: 380px;
+      margin-top: 12px;
+      border-radius: 8px;
+      background: black;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .status-logo {
+      margin: 0 auto 20px auto;
+      display: block;
+      width: 180px;
+      height: auto;
+    }
+
+    a.offline-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div style="text-align: center; margin: 20px 0;">
+    <img src="wots.png" alt="Wots.Live logo">
+  </div>
+
+  <!-- Live Section -->
+  <div id="live-section">
+    <img src="live.jpg" alt="Live" class="status-logo">
+    <div id="streams-live"></div>
+  </div>
+
+  <!-- Offline Section -->
+  <div id="offline-section">
+    <img src="offline.png" alt="Offline" class="status-logo">
+    <div id="streams-offline"></div>
+  </div>
+
+  <script>
+    async function fetchStreams() {
+      const res = await fetch("/streams");
+      return await res.json();
+    }
+
+    async function refreshStreamsUI() {
+      const streams = await fetchStreams();
+      const liveContainer = document.getElementById("streams-live");
+      const offlineContainer = document.getElementById("streams-offline");
+
+      liveContainer.innerHTML = "";
+      offlineContainer.innerHTML = "";
+
+      streams.forEach(user => {
+        // widget
+        const div = document.createElement("div");
+        div.className = "widget";
+
+        // profile photo (live → clickable)
+        const img = document.createElement("img");
+        img.className = "profile";
+        img.src = user.profile_picture_url || "https://via.placeholder.com/80";
+
+        if (user.isLive) {
+          img.addEventListener("click", () => {
+            window.open(`https://wots.live/${user.username}`, "_blank");
+          });
+        }
+
+        div.appendChild(img);
+
+        // username
+        const username = document.createElement("div");
+        username.className = "username";
+        username.textContent = user.username;
+        div.appendChild(username);
+
+        if (user.isLive) {
+          // stream title
+          if (user.title) {
+            const title = document.createElement("div");
+            title.className = "title";
+            title.textContent = user.title;
+            div.appendChild(title);
+          }
+
+          // viewer count
+          if (user.viewerCount !== undefined) {
+            const viewers = document.createElement("div");
+            viewers.className = "viewers";
+            viewers.textContent = `${user.viewerCount} viewers`;
+            div.appendChild(viewers);
+          }
+
+          // video
+          if (user.playbackUrls?.length > 0) {
+            const video = document.createElement("video");
+            video.controls = true;
+            video.autoplay = true;
+            video.muted = true; // prevent autoplay issues
+            div.appendChild(video);
+
+            const url = user.playbackUrls[0];
+            if (Hls.isSupported()) {
+              const hls = new Hls();
+              hls.loadSource(url);
+              hls.attachMedia(video);
+            } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+              video.src = url;
+            }
+          }
+
+          liveContainer.appendChild(div);
+        } else {
+          // wrap offline widget in link
+          const link = document.createElement("a");
+          link.href = `https://wots.live/${user.username}`;
+          link.target = "_blank";
+          link.className = "offline-link";
+          link.appendChild(div);
+
+          offlineContainer.appendChild(link);
+        }
+      });
+    }
+
+    refreshStreamsUI();
+    setInterval(refreshStreamsUI, 5000);
+  </script>
+</body>
+</html>
