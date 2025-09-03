@@ -11,6 +11,7 @@
     Multiwatch.wots.live is a Node.js application that allows you to monitor and watch multiple live streams from 
     <a href="https://wots.live" target="_blank">wots.live</a>. It automatically tracks selected channels, fetches live status, viewer counts, stream titles, and playback URLs, and exposes this data via a simple API.
   </p>
+<img width="533" height="138" alt="wots" src="https://github.com/user-attachments/assets/e234ea62-d3e2-4d2c-aa24-8c5d738ad51f" />
 
   <h2>Features</h2>
   <ul>
