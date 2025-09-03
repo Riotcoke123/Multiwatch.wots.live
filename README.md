@@ -2,39 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Multiwatch.wots.live README</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      margin: 20px;
-      max-width: 900px;
-    }
-    h1, h2, h3 {
-      color: #333;
-    }
-    pre {
-      background-color: #f4f4f4;
-      padding: 10px;
-      border-radius: 4px;
-      overflow-x: auto;
-    }
-    code {
-      background-color: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    a {
-      color: #0366d6;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    ul {
-      margin-left: 20px;
-    }
-  </style>
+  
 </head>
 <body>
   <h1>Multiwatch.wots.live</h1>
