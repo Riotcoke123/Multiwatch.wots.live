@@ -4,23 +4,21 @@
   <meta charset="UTF-8">
   <title>Watch Multiple Streams of Wots.Live</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <!-- External stylesheet -->
   <link rel="stylesheet" href="styles.css">
+  
 </head>
 <body>
   <div style="text-align: center; margin: 20px 0;">
     <img src="wots.png" alt="Wots.Live logo">
   </div>
 
-  <!-- Live Section -->
   <div id="live-section">
-    <img src="live.jpg" alt="Live" class="status-logo">
+    <img src="live.jpg" alt="Live" class="status-logo">Live Streams
     <div id="streams-live"></div>
   </div>
 
-  <!-- Offline Section -->
   <div id="offline-section">
-    <img src="offline.png" alt="Offline" class="status-logo">
+    <img src="offline.png" alt="Offline" class="status-logo">Offline VODs
     <div id="streams-offline"></div>
   </div>
 
@@ -30,88 +28,141 @@
       return await res.json();
     }
 
+    // Create video element with HLS support
+    function createVideoElement(url, muted = true) {
+      const video = document.createElement("video");
+      video.controls = true;
+      video.autoplay = false; // lazy load will handle play
+      video.muted = muted;
+      video.dataset.src = url; // store URL for lazy load
+
+      if (Hls.isSupported()) {
+        video.dataset.hls = "true"; // mark as HLS
+      }
+
+      return video;
+    }
+
+    // Intersection Observer for lazy autoplay
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const video = entry.target;
+        if (entry.isIntersecting) {
+          // Load HLS or set src if not already loaded
+          if (video.dataset.hls && !video.dataset.loaded) {
+            const hls = new Hls();
+            hls.loadSource(video.dataset.src);
+            hls.attachMedia(video);
+            video.dataset.loaded = "true";
+          } else if (!video.src) {
+            video.src = video.dataset.src;
+          }
+          video.play().catch(() => {}); // autoplay when visible
+          video.style.opacity = 1;
+        } else {
+          video.pause(); // pause when out of view
+          video.style.opacity = 0.5;
+        }
+      });
+    }, { threshold: 0.25 }); // play when 25% visible
+
     async function refreshStreamsUI() {
       const streams = await fetchStreams();
       const liveContainer = document.getElementById("streams-live");
       const offlineContainer = document.getElementById("streams-offline");
 
-      liveContainer.innerHTML = "";
-      offlineContainer.innerHTML = "";
+      // Track existing widgets
+      const existingLive = {};
+      liveContainer.querySelectorAll('.widget').forEach(div => existingLive[div.dataset.username] = div);
+      const existingOffline = {};
+      offlineContainer.querySelectorAll('.widget').forEach(div => existingOffline[div.dataset.username] = div);
+
+      const liveUsernames = [];
+      const offlineUsernames = [];
 
       streams.forEach(user => {
-        // widget
+        const container = user.isLive ? liveContainer : offlineContainer;
+        const existingDiv = user.isLive ? existingLive[user.username] : existingOffline[user.username];
+        const currentUsernames = user.isLive ? liveUsernames : offlineUsernames;
+        currentUsernames.push(user.username);
+
+        if (existingDiv) {
+          // update title/viewers for live
+          if (user.isLive && user.live) {
+            const titleEl = existingDiv.querySelector('.title');
+            if (titleEl) titleEl.textContent = user.live.title || "";
+            const viewersEl = existingDiv.querySelector('.viewers');
+            if (viewersEl) viewersEl.textContent = user.live.viewerCount !== undefined ? `${user.live.viewerCount} viewers` : "";
+          }
+          return; // skip recreation
+        }
+
         const div = document.createElement("div");
         div.className = "widget";
+        div.dataset.username = user.username;
 
-        // profile photo (live → clickable)
+        // Profile
         const img = document.createElement("img");
         img.className = "profile";
         img.src = user.profile_picture_url || "https://via.placeholder.com/80";
-
-        if (user.isLive) {
-          img.addEventListener("click", () => {
-            window.open(`https://wots.live/${user.username}`, "_blank");
-          });
-        }
-
         div.appendChild(img);
 
-        // username
-        const username = document.createElement("div");
-        username.className = "username";
-        username.textContent = user.username;
-        div.appendChild(username);
+        // Username
+        const usernameEl = document.createElement("div");
+        usernameEl.className = "username";
+        usernameEl.textContent = user.username;
+        div.appendChild(usernameEl);
 
-        if (user.isLive) {
-          // stream title
-          if (user.title) {
+        let videoAdded = false;
+
+        if (user.isLive && user.live && user.live.playbackUrls?.length > 0) {
+          const video = createVideoElement(user.live.playbackUrls[0]);
+          div.appendChild(video);
+          observer.observe(video); // lazy load
+          videoAdded = true;
+
+          if (user.live.title) {
             const title = document.createElement("div");
             title.className = "title";
-            title.textContent = user.title;
+            title.textContent = user.live.title;
             div.appendChild(title);
           }
-
-          // viewer count
-          if (user.viewerCount !== undefined) {
+          if (user.live.viewerCount !== undefined) {
             const viewers = document.createElement("div");
             viewers.className = "viewers";
-            viewers.textContent = `${user.viewerCount} viewers`;
+            viewers.textContent = `${user.live.viewerCount} viewers`;
             div.appendChild(viewers);
           }
-
-          // video
-          if (user.playbackUrls?.length > 0) {
-            const video = document.createElement("video");
-            video.controls = true;
-            video.autoplay = true;
-            video.muted = true; // prevent autoplay issues
-            div.appendChild(video);
-
-            const url = user.playbackUrls[0];
-            if (Hls.isSupported()) {
-              const hls = new Hls();
-              hls.loadSource(url);
-              hls.attachMedia(video);
-            } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-              video.src = url;
-            }
-          }
-
-          liveContainer.appendChild(div);
-        } else {
-          // wrap offline widget in link
-          const link = document.createElement("a");
-          link.href = `https://wots.live/${user.username}`;
-          link.target = "_blank";
-          link.className = "offline-link";
-          link.appendChild(div);
-
-          offlineContainer.appendChild(link);
+        } else if (!user.isLive && user.vod && user.vod.vodPlaybackUrl) {
+          const video = createVideoElement(user.vod.vodPlaybackUrl, false);
+          video.muted = false; // VOD can have sound
+          div.appendChild(video);
+          observer.observe(video);
+          videoAdded = true;
         }
+
+        if (!videoAdded) {
+          const info = document.createElement("div");
+          info.className = "title";
+          info.textContent = "No recent VOD available";
+          div.appendChild(info);
+        }
+
+        container.appendChild(div);
+      });
+
+      // Remove old widgets
+      liveContainer.querySelectorAll('.widget').forEach(div => {
+        if (!liveUsernames.includes(div.dataset.username)) div.remove();
+      });
+      offlineContainer.querySelectorAll('.widget').forEach(div => {
+        if (!offlineUsernames.includes(div.dataset.username)) div.remove();
       });
     }
 
+    // Initial load
     refreshStreamsUI();
+    // Refresh every 5 seconds
     setInterval(refreshStreamsUI, 5000);
   </script>
 </body>
