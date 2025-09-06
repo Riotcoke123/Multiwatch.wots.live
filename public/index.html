@@ -5,7 +5,7 @@
   <title>Watch Multiple Streams of Wots.Live</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <link rel="stylesheet" href="styles.css">
-  
+
 </head>
 <body>
   <div style="text-align: center; margin: 20px 0;">
@@ -29,26 +29,26 @@
     }
 
     // Create video element with HLS support
-    function createVideoElement(url, muted = true) {
+    function createVideoElement(url, muted = true, isLive = false) {
       const video = document.createElement("video");
       video.controls = true;
-      video.autoplay = false; // lazy load will handle play
+      video.autoplay = false;
       video.muted = muted;
-      video.dataset.src = url; // store URL for lazy load
+      video.dataset.src = url;
+      video.dataset.isLive = isLive ? "true" : "false";
 
       if (Hls.isSupported()) {
-        video.dataset.hls = "true"; // mark as HLS
+        video.dataset.hls = "true";
       }
 
       return video;
     }
 
-    // Intersection Observer for lazy autoplay
+    // Intersection Observer for lazy autoplay (LIVE ONLY)
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         const video = entry.target;
-        if (entry.isIntersecting) {
-          // Load HLS or set src if not already loaded
+        if (entry.isIntersecting && video.dataset.isLive === "true") {
           if (video.dataset.hls && !video.dataset.loaded) {
             const hls = new Hls();
             hls.loadSource(video.dataset.src);
@@ -57,46 +57,26 @@
           } else if (!video.src) {
             video.src = video.dataset.src;
           }
-          video.play().catch(() => {}); // autoplay when visible
+          video.play().catch(() => {});
           video.style.opacity = 1;
-        } else {
-          video.pause(); // pause when out of view
+        } else if (video.dataset.isLive === "true") {
+          video.pause();
           video.style.opacity = 0.5;
         }
       });
-    }, { threshold: 0.25 }); // play when 25% visible
+    }, { threshold: 0.25 });
 
     async function refreshStreamsUI() {
       const streams = await fetchStreams();
       const liveContainer = document.getElementById("streams-live");
       const offlineContainer = document.getElementById("streams-offline");
 
-      // Track existing widgets
-      const existingLive = {};
-      liveContainer.querySelectorAll('.widget').forEach(div => existingLive[div.dataset.username] = div);
-      const existingOffline = {};
-      offlineContainer.querySelectorAll('.widget').forEach(div => existingOffline[div.dataset.username] = div);
-
-      const liveUsernames = [];
-      const offlineUsernames = [];
+      // Clear current
+      liveContainer.innerHTML = "";
+      offlineContainer.innerHTML = "";
 
       streams.forEach(user => {
         const container = user.isLive ? liveContainer : offlineContainer;
-        const existingDiv = user.isLive ? existingLive[user.username] : existingOffline[user.username];
-        const currentUsernames = user.isLive ? liveUsernames : offlineUsernames;
-        currentUsernames.push(user.username);
-
-        if (existingDiv) {
-          // update title/viewers for live
-          if (user.isLive && user.live) {
-            const titleEl = existingDiv.querySelector('.title');
-            if (titleEl) titleEl.textContent = user.live.title || "";
-            const viewersEl = existingDiv.querySelector('.viewers');
-            if (viewersEl) viewersEl.textContent = user.live.viewerCount !== undefined ? `${user.live.viewerCount} viewers` : "";
-          }
-          return; // skip recreation
-        }
-
         const div = document.createElement("div");
         div.className = "widget";
         div.dataset.username = user.username;
@@ -115,10 +95,10 @@
 
         let videoAdded = false;
 
-        if (user.isLive && user.live && user.live.playbackUrls?.length > 0) {
-          const video = createVideoElement(user.live.playbackUrls[0]);
+        if (user.isLive && user.live?.playbackUrls?.length > 0) {
+          const video = createVideoElement(user.live.playbackUrls[0], true, true);
           div.appendChild(video);
-          observer.observe(video); // lazy load
+          observer.observe(video); // lazy autoplay
           videoAdded = true;
 
           if (user.live.title) {
@@ -133,11 +113,38 @@
             viewers.textContent = `${user.live.viewerCount} viewers`;
             div.appendChild(viewers);
           }
-        } else if (!user.isLive && user.vod && user.vod.vodPlaybackUrl) {
-          const video = createVideoElement(user.vod.vodPlaybackUrl, false);
-          video.muted = false; // VOD can have sound
-          div.appendChild(video);
-          observer.observe(video);
+        } else if (!user.isLive && user.vod?.vodPlaybackUrl) {
+          const vodWrapper = document.createElement("div");
+          vodWrapper.className = "vod-container";
+          vodWrapper.style.position = "relative";
+
+          const video = createVideoElement(user.vod.vodPlaybackUrl, false, false);
+          vodWrapper.appendChild(video);
+
+          // Overlay button
+          const overlay = document.createElement("div");
+          overlay.className = "overlay";
+          overlay.textContent = "▶ Click to Play";
+          vodWrapper.appendChild(overlay);
+
+          // Click-to-play for offline VOD
+          const startVod = () => {
+            if (video.dataset.hls && !video.dataset.loaded) {
+              const hls = new Hls();
+              hls.loadSource(video.dataset.src);
+              hls.attachMedia(video);
+              video.dataset.loaded = "true";
+            } else if (!video.src) {
+              video.src = video.dataset.src;
+            }
+            video.play();
+            overlay.style.display = "none";
+          };
+
+          overlay.addEventListener("click", startVod);
+          video.addEventListener("click", startVod);
+
+          div.appendChild(vodWrapper);
           videoAdded = true;
         }
 
@@ -149,14 +156,6 @@
         }
 
         container.appendChild(div);
-      });
-
-      // Remove old widgets
-      liveContainer.querySelectorAll('.widget').forEach(div => {
-        if (!liveUsernames.includes(div.dataset.username)) div.remove();
-      });
-      offlineContainer.querySelectorAll('.widget').forEach(div => {
-        if (!offlineUsernames.includes(div.dataset.username)) div.remove();
       });
     }
 
