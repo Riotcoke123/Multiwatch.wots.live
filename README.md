@@ -1,4 +1,10 @@
 <h1 align="center">Multiwatch for wots.live</h1>
+
+<p align="center">
+  🚧 <strong>Beta Notice:</strong> This project is currently in <em>beta</em>.  
+  Expect some bugs and rough edges — active updates and improvements are in progress!
+</p>
+
 <p align="center">
   Monitor and watch multiple live streams from <a href="https://wots.live" target="_blank" rel="noopener">wots.live</a> using a tiny Node.js + Express service.
 </p>
@@ -143,8 +149,26 @@ pm2 save
 
 <hr/>
 
+<h2>Known Issues & Roadmap</h2>
+
+<ul>
+  <li>⚠️ Some streams occasionally fail to load — retry logic is being improved</li>
+  <li>⚠️ Offline VOD detection is inconsistent for certain channels</li>
+  <li>⚠️ UI may not scale well on smaller mobile screens</li>
+</ul>
+
+<p><strong>Planned Updates:</strong></p>
+<ul>
+  <li>🔄 More stable polling and error handling</li>
+  <li>📱 Improved mobile-friendly UI</li>
+  <li>⚡ Configurable frontend (custom channel selection)</li>
+  <li>🛠️ Docker Compose support for easier deployment</li>
+</ul>
+
+<hr/>
+
 <h2>License</h2>
-<p>MIT — see <code>LICENSE</code>.</p>
+<p>GNU General Public License v3.0  — see <code>LICENSE</code>.</p>
 
 <hr/>
 
