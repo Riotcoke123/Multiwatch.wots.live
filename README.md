@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>README | Multiwatch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
 <body class="bg-slate-900 text-white p-6">
     <div class="max-w-4xl mx-auto space-y-8">
+        <div class="flex justify-center">
+            <img width="533" height="138" alt="wots" src="https://github.com/user-attachments/assets/35008bb8-cf04-40dd-abe4-768f054abed0" />
+        </div>
         <header class="text-center space-y-2">
             <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-400">Multiwatch.wots.live</h1>
-            <p class="text-lg text-slate-300">A multi-stream viewer for Wots.Live channels, designed to let you watch multiple live streams and VODs simultaneously.</p>
+            <p class="text-lg text-slate-300">A multi-stream viewer for <a href="https://wots.live/" class="text-indigo-400 hover:text-indigo-200 underline">Wots.Live</a> channels, designed to let you watch multiple live streams and VODs simultaneously.</p>
         </header>
         <section class="space-y-4">
             <h2 class="text-2xl md:text-3xl font-bold text-indigo-300">Features</h2>
@@ -19,7 +27,7 @@
         <section class="space-y-4">
             <h2 class="text-2xl md:text-3xl font-bold text-indigo-300">How It Works</h2>
             <p class="text-slate-200">
-                This application consists of a backend server (<code>monitor.js</code>) and a frontend UI (<code>index.html</code>).
+                This application consists of a backend server (<code>monitor.js</code>) and a frontend UI (<code>index.html</code>). It uses the <a href="https://github.com/Riotcoke123/wots.live_API_V1" class="text-indigo-400 hover:text-indigo-200 underline">Wots.Live API</a> to fetch stream information.
             </p>
             <ol class="list-decimal list-inside space-y-2 text-slate-200">
                 <li>The server continuously polls the Wots.Live API to check the status of a list of specified channels.</li>
@@ -36,7 +44,7 @@
                 <li><strong class="font-semibold">Video Playback:</strong> hls.js for HLS streaming</li>
             </ul>
         </section>
-        <section class="space-y-4">
+                <section class="space-y-4">
             <h2 class="text-2xl md:text-3xl font-bold text-indigo-300">Getting Started Locally</h2>
             <p class="text-slate-200">To run this project on your local machine, follow these steps:</p>
             <ol class="list-decimal list-inside space-y-2 text-slate-200">
@@ -47,6 +55,12 @@
                 <li>Start the server: <code>node monitor.js</code></li>
                 <li>Open your web browser and go to <code>http://localhost:3000</code>.</li>
             </ol>
+        </section>
+        <section class="space-y-4">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-300">License</h2>
+            <p class="text-slate-200">
+                This project is licensed under the <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" class="text-indigo-400 hover:text-indigo-200 underline">GNU General Public License v3.0</a>.
+            </p>
         </section>
     </div>
 </body>
