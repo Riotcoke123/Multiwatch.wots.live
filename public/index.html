@@ -1,168 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Watch Multiple Streams of Wots.Live</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Watch Multiple Streams of Wots.Live</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <link rel="stylesheet" href="styles.css">
 
 </head>
 <body>
-  <div style="text-align: center; margin: 20px 0;">
-    <img src="wots.png" alt="Wots.Live logo">
-  </div>
+  <div class="centered-logo">
+    <img src="wots.png" alt="Wots.Live logo">
+  </div>
 
-  <div id="live-section">
-    <img src="live.jpg" alt="Live" class="status-logo">Live Streams
-    <div id="streams-live"></div>
-  </div>
+  <div id="live-section">
+    <img src="live.jpg" alt="Live" class="status-logo">Live Streams
+    <div id="streams-live"></div>
+  </div>
 
-  <div id="offline-section">
-    <img src="offline.png" alt="Offline" class="status-logo">Offline VODs
-    <div id="streams-offline"></div>
-  </div>
+  <div id="offline-section">
+    <img src="offline.png" alt="Offline" class="status-logo">Offline VODs
+    <div id="streams-offline"></div>
+  </div>
 
-  <script>
-    async function fetchStreams() {
-      const res = await fetch("/streams");
-      return await res.json();
-    }
+  <script>
+    async function fetchStreams() {
+      const res = await fetch("/streams");
+      return await res.json();
+    }
 
-    // Create video element with HLS support
-    function createVideoElement(url, muted = true, isLive = false) {
-      const video = document.createElement("video");
-      video.controls = true;
-      video.autoplay = false;
-      video.muted = muted;
-      video.dataset.src = url;
-      video.dataset.isLive = isLive ? "true" : "false";
+    // Function to initialize hls.js for a video element
+    function initHlsVideo(video, url) {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        video.dataset.loaded = "true";
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(e => console.error("Autoplay failed:", e));
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.play().catch(e => console.error("Autoplay failed:", e));
+      }
+    }
 
-      if (Hls.isSupported()) {
-        video.dataset.hls = "true";
-      }
+    // Create video element with HLS support
+    function createVideoElement(url, muted = true, isLive = false) {
+      const video = document.createElement("video");
+      video.controls = true;
+      video.autoplay = false;
+      video.muted = muted;
+      video.dataset.src = url;
+      video.dataset.isLive = isLive ? "true" : "false";
+      video.dataset.loaded = "false";
+      video.style.opacity = isLive ? 0.5 : 1;
+      return video;
+    }
 
-      return video;
-    }
+    // Intersection Observer for lazy autoplay (LIVE ONLY)
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const video = entry.target;
+        if (entry.isIntersecting && video.dataset.isLive === "true") {
+          if (video.dataset.loaded === "false") {
+            initHlsVideo(video, video.dataset.src);
+          }
+          video.style.opacity = 1;
+        } else if (video.dataset.isIntersecting && video.dataset.isLive === "false") {
+          // VODs are not affected by this observer logic
+          video.style.opacity = 1;
+        } else if (!entry.isIntersecting && video.dataset.isLive === "true") {
+          video.pause();
+          video.style.opacity = 0.5;
+        }
+      });
+    }, { threshold: 0.25 });
 
-    // Intersection Observer for lazy autoplay (LIVE ONLY)
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const video = entry.target;
-        if (entry.isIntersecting && video.dataset.isLive === "true") {
-          if (video.dataset.hls && !video.dataset.loaded) {
-            const hls = new Hls();
-            hls.loadSource(video.dataset.src);
-            hls.attachMedia(video);
-            video.dataset.loaded = "true";
-          } else if (!video.src) {
-            video.src = video.dataset.src;
-          }
-          video.play().catch(() => {});
-          video.style.opacity = 1;
-        } else if (video.dataset.isLive === "true") {
-          video.pause();
-          video.style.opacity = 0.5;
-        }
-      });
-    }, { threshold: 0.25 });
+    async function refreshStreamsUI() {
+      const streams = await fetchStreams();
+      const liveContainer = document.getElementById("streams-live");
+      const offlineContainer = document.getElementById("streams-offline");
 
-    async function refreshStreamsUI() {
-      const streams = await fetchStreams();
-      const liveContainer = document.getElementById("streams-live");
-      const offlineContainer = document.getElementById("streams-offline");
+      const liveUsernames = new Set();
+      const offlineUsernames = new Set();
+      
+      streams.forEach(user => {
+        const container = user.isLive ? liveContainer : offlineContainer;
+        const existingWidget = document.querySelector(`.widget[data-username="${user.username}"]`);
 
-      // Clear current
-      liveContainer.innerHTML = "";
-      offlineContainer.innerHTML = "";
+        if (user.isLive) {
+          liveUsernames.add(user.username);
+        } else {
+          offlineUsernames.add(user.username);
+        }
 
-      streams.forEach(user => {
-        const container = user.isLive ? liveContainer : offlineContainer;
-        const div = document.createElement("div");
-        div.className = "widget";
-        div.dataset.username = user.username;
+        // If the widget already exists, check if it needs to be moved or updated
+        if (existingWidget) {
+          const currentParent = existingWidget.parentNode;
+          if (currentParent !== container) {
+            // Channel status changed (live to offline or vice-versa), so move it
+            container.appendChild(existingWidget);
+          }
+          // Update live data if needed
+          if (user.isLive) {
+            const viewersEl = existingWidget.querySelector(".viewers");
+            if (viewersEl) {
+              viewersEl.textContent = `${user.live.viewerCount} viewers`;
+            }
+          }
+        } else {
+          // Create a new widget if it doesn't exist
+          const div = document.createElement("div");
+          div.className = "widget";
+          div.dataset.username = user.username;
 
-        // Profile
-        const img = document.createElement("img");
-        img.className = "profile";
-        img.src = user.profile_picture_url || "https://via.placeholder.com/80";
-        div.appendChild(img);
+          // Profile
+          const img = document.createElement("img");
+          img.className = "profile";
+          img.src = user.profile_picture_url || "https://via.placeholder.com/80";
+          div.appendChild(img);
 
-        // Username
-        const usernameEl = document.createElement("div");
-        usernameEl.className = "username";
-        usernameEl.textContent = user.username;
-        div.appendChild(usernameEl);
+          // Username
+          const usernameEl = document.createElement("div");
+          usernameEl.className = "username";
+          usernameEl.textContent = user.username;
+          div.appendChild(usernameEl);
 
-        let videoAdded = false;
+          let videoAdded = false;
 
-        if (user.isLive && user.live?.playbackUrls?.length > 0) {
-          const video = createVideoElement(user.live.playbackUrls[0], true, true);
-          div.appendChild(video);
-          observer.observe(video); // lazy autoplay
-          videoAdded = true;
+          if (user.isLive && user.live?.playbackUrls?.length > 0) {
+            const video = createVideoElement(user.live.playbackUrls[0], true, true);
+            div.appendChild(video);
+            observer.observe(video);
+            videoAdded = true;
 
-          if (user.live.title) {
-            const title = document.createElement("div");
-            title.className = "title";
-            title.textContent = user.live.title;
-            div.appendChild(title);
-          }
-          if (user.live.viewerCount !== undefined) {
-            const viewers = document.createElement("div");
-            viewers.className = "viewers";
-            viewers.textContent = `${user.live.viewerCount} viewers`;
-            div.appendChild(viewers);
-          }
-        } else if (!user.isLive && user.vod?.vodPlaybackUrl) {
-          const vodWrapper = document.createElement("div");
-          vodWrapper.className = "vod-container";
-          vodWrapper.style.position = "relative";
+            if (user.live.title) {
+              const title = document.createElement("div");
+              title.className = "title";
+              title.textContent = user.live.title;
+              div.appendChild(title);
+            }
+            if (user.live.viewerCount !== undefined) {
+              const viewers = document.createElement("div");
+              viewers.className = "viewers";
+              viewers.textContent = `${user.live.viewerCount} viewers`;
+              div.appendChild(viewers);
+            }
+          } else if (!user.isLive && user.vod?.vodPlaybackUrl) {
+            const video = createVideoElement(user.vod.vodPlaybackUrl, false, false);
+            div.appendChild(video);
+            initHlsVideo(video, user.vod.vodPlaybackUrl);
+            videoAdded = true;
+          }
 
-          const video = createVideoElement(user.vod.vodPlaybackUrl, false, false);
-          vodWrapper.appendChild(video);
+          if (!videoAdded) {
+            const info = document.createElement("div");
+            info.className = "title";
+            info.textContent = "No recent VOD available";
+            div.appendChild(info);
+          }
 
-          // Overlay button
-          const overlay = document.createElement("div");
-          overlay.className = "overlay";
-          overlay.textContent = "▶ Click to Play";
-          vodWrapper.appendChild(overlay);
+          container.appendChild(div);
+        }
+      });
+    
+      // Remove widgets that no longer exist or have changed status
+      const allWidgets = document.querySelectorAll(".widget");
+      allWidgets.forEach(widget => {
+        const username = widget.dataset.username;
+        if (!liveUsernames.has(username) && !offlineUsernames.has(username)) {
+          // Channel is no longer in the list, remove it
+          widget.remove();
+        } else if (liveUsernames.has(username) && widget.parentNode !== liveContainer) {
+          // Channel switched from offline to live, move it
+          liveContainer.appendChild(widget);
+        } else if (offlineUsernames.has(username) && widget.parentNode !== offlineContainer) {
+          // Channel switched from live to offline, move it
+          offlineContainer.appendChild(widget);
+        }
+      });
+    }
 
-          // Click-to-play for offline VOD
-          const startVod = () => {
-            if (video.dataset.hls && !video.dataset.loaded) {
-              const hls = new Hls();
-              hls.loadSource(video.dataset.src);
-              hls.attachMedia(video);
-              video.dataset.loaded = "true";
-            } else if (!video.src) {
-              video.src = video.dataset.src;
-            }
-            video.play();
-            overlay.style.display = "none";
-          };
-
-          overlay.addEventListener("click", startVod);
-          video.addEventListener("click", startVod);
-
-          div.appendChild(vodWrapper);
-          videoAdded = true;
-        }
-
-        if (!videoAdded) {
-          const info = document.createElement("div");
-          info.className = "title";
-          info.textContent = "No recent VOD available";
-          div.appendChild(info);
-        }
-
-        container.appendChild(div);
-      });
-    }
-
-    // Initial load
-    refreshStreamsUI();
-    // Refresh every 5 seconds
-    setInterval(refreshStreamsUI, 5000);
-  </script>
+    // Initial load
+    refreshStreamsUI();
+    // Refresh every 5 seconds
+    setInterval(refreshStreamsUI, 5000);
+  </script>
 </body>
 </html>
